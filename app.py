@@ -8,9 +8,9 @@ import io
 st.set_page_config(layout="wide", page_title="SSS Master Sheet Dashboard")
 
 st.title("SSS Master Sheet Reporting & Dashboard")
-st.markdown("Upload your Excel files to generate reports, visualizations, and a dashboard.")
+st.markdown("Upload your **single SSS Master Sheet Excel workbook** to get reports, visualizations, and a dashboard for its sheets.")
 
-# --- Helper Functions for Processing Each File Type ---
+# --- Helper Functions for Processing Each File Type (now by Sheet Name) ---
 
 def process_qt_register_2025(df: pd.DataFrame):
     """
@@ -185,47 +185,80 @@ def process_payment_pending(df: pd.DataFrame):
         ax.set_title('Top 10 Parties by Pending Amount')
         st.pyplot(fig)
 
+def process_quotation_register_2023(df: pd.DataFrame):
+    """
+    Processes the 'Quotation Register 2023' data.
+    Note: This sheet has generic column names, so specific analysis is limited without more info.
+    """
+    st.header("5. Quotation Register 2023 Analysis")
+    st.warning("This sheet has generic column names (e.g., Unnamed: 0), making specific analysis challenging without more context.")
+    st.subheader("Raw Data Preview")
+    st.dataframe(df.head())
+    st.write("Columns detected:", df.columns.tolist())
+    st.markdown("""
+    To perform meaningful analysis on this sheet, please provide more information about what each column represents.
+    """)
 
 # --- Main Application Logic ---
-uploaded_files = st.file_uploader(
-    "Upload your SSS Master Sheet Excel files",
-    type=["xlsx"], # Changed to accept Excel files
-    accept_multiple_files=True
+
+# Dictionary to map sheet names to their respective skiprows values
+# Based on the original CSV headers provided in the problem description
+sheet_skiprows_map = {
+    "Payment Pending": 1,
+    "Quotation Register 2023": 879, # Assuming this is the exact sheet name in the .xlsx
+    "Meeting Agenda": 2,
+    # For '2025 INV' and 'QT Register 2025', assuming header is at row 0 (default)
+}
+
+uploaded_file = st.file_uploader(
+    "Upload your SSS Master Sheet Excel workbook (.xlsx)",
+    type=["xlsx"],
+    accept_multiple_files=False # Only one Excel file at a time
 )
 
-if uploaded_files:
-    for uploaded_file in uploaded_files:
-        st.sidebar.subheader(f"Processing: {uploaded_file.name}")
-        try:
-            # Read Excel with a specified header row based on initial inspection
-            # Note: pd.read_excel might handle headers differently than pd.read_csv
-            # The skiprows argument is still used for consistency based on previous CSV parsing.
-            if "Payment Pending" in uploaded_file.name:
-                df = pd.read_excel(uploaded_file, skiprows=1)
-            elif "Quotation Register 2023" in uploaded_file.name:
-                df = pd.read_excel(uploaded_file, skiprows=879)
-            elif "Meeting Agenda" in uploaded_file.name:
-                df = pd.read_excel(uploaded_file, skiprows=2)
-            else: # Default for QT Register 2025, 2025 INV, or other general Excel sheets
-                df = pd.read_excel(uploaded_file)
+if uploaded_file:
+    try:
+        # Read all sheet names from the uploaded Excel file
+        excel_file = pd.ExcelFile(uploaded_file)
+        sheet_names = excel_file.sheet_names
 
-            # Use st.expander for a collapsible section for each file's analysis
-            with st.expander(f"Analysis for {uploaded_file.name}"):
-                if "QT Register 2025" in uploaded_file.name:
-                    process_qt_register_2025(df.copy()) # Use .copy() to avoid SettingWithCopyWarning
-                elif "2025 INV" in uploaded_file.name:
-                    process_2025_inv(df.copy())
-                elif "Meeting Agenda" in uploaded_file.name:
-                    process_meeting_agenda(df.copy())
-                elif "Payment Pending" in uploaded_file.name:
-                    process_payment_pending(df.copy())
-                else:
-                    st.write(f"No specific processing logic defined for '{uploaded_file.name}'.")
-                    st.dataframe(df.head()) # Show raw data if no specific logic
+        st.sidebar.subheader("Select Sheets to Analyze")
+        selected_sheets = st.sidebar.multiselect(
+            "Choose which sheets to analyze:",
+            options=sheet_names,
+            default=[s for s in sheet_names if any(keyword in s for keyword in ["QT Register 2025", "2025 INV", "Meeting Agenda", "Payment Pending", "Quotation Register 2023"])]
+        )
 
-        except Exception as e:
-            st.error(f"Error processing {uploaded_file.name}: {e}")
-            st.write("Please ensure the file is a valid Excel sheet and matches the expected structure.")
+        if not selected_sheets:
+            st.info("Please select at least one sheet from the sidebar to begin analysis.")
+        else:
+            for sheet_name in selected_sheets:
+                st.sidebar.write(f"Loading sheet: {sheet_name}")
+
+                # Determine skiprows for the current sheet
+                skip_rows = sheet_skiprows_map.get(sheet_name, 0) # Default to 0 if not in map
+
+                # Read the specific sheet
+                df = pd.read_excel(uploaded_file, sheet_name=sheet_name, skiprows=skip_rows)
+
+                with st.expander(f"Analysis for Sheet: '{sheet_name}'"):
+                    if "QT Register 2025" in sheet_name:
+                        process_qt_register_2025(df.copy())
+                    elif "2025 INV" in sheet_name:
+                        process_2025_inv(df.copy())
+                    elif "Meeting Agenda" in sheet_name:
+                        process_meeting_agenda(df.copy())
+                    elif "Payment Pending" in sheet_name:
+                        process_payment_pending(df.copy())
+                    elif "Quotation Register 2023" in sheet_name: # Handle the 2023 quotation sheet
+                        process_quotation_register_2023(df.copy())
+                    else:
+                        st.write(f"No specific processing logic defined for sheet: '{sheet_name}'. Displaying raw data.")
+                        st.dataframe(df.head())
+
+    except Exception as e:
+        st.error(f"Error processing the Excel file: {e}")
+        st.write("Please ensure the uploaded file is a valid .xlsx workbook and that the sheet names and data formats are consistent.")
 
 else:
-    st.info("Please upload your Excel files to get started.")
+    st.info("Please upload your Excel workbook (.xlsx) to get started.")
