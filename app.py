@@ -27,48 +27,56 @@ data = {sheet: xlsx.parse(sheet) for sheet in xlsx.sheet_names}
 
 st.sidebar.header("Sheets Overview")
 selected_sheet = st.sidebar.selectbox("Select Sheet to View", options=list(data.keys()))
+
+sheet_df = data[selected_sheet].copy()
 st.subheader(f"📄 Viewing Sheet: {selected_sheet}")
-st.dataframe(data[selected_sheet])
+st.dataframe(sheet_df)
 
-# --- Insights ---
-if "Payment Pending" in data:
-    payment_pending = data["Payment Pending"]
-    if "Amount" in payment_pending.columns:
-        total_pending = payment_pending["Amount"].sum()
-        st.metric("💰 Total Pending Amount", f"BHD {total_pending:,.2f}")
+# --- Auto Visualization ---
+st.subheader("📊 Auto Visualizations")
+try:
+    numeric_cols = sheet_df.select_dtypes(include='number').columns.tolist()
+    date_cols = sheet_df.select_dtypes(include='datetime').columns.tolist()
 
-if "Quotation" in data:
-    all_qts = data["Quotation"].copy()
-    if "Date" in all_qts.columns:
-        try:
-            all_qts["Date"] = pd.to_datetime(all_qts["Date"], errors='coerce')
-            qt_monthly = (
-                all_qts.dropna(subset=["Date"])
-                .assign(Month=lambda df: df["Date"].dt.to_period("M"))
-                .groupby("Month").size().reset_index(name="Quotations")
-            )
-            qt_monthly["Month"] = qt_monthly["Month"].astype(str)
-            st.subheader("📈 Quotations Over Time")
-            st.line_chart(qt_monthly.set_index("Month"))
-        except Exception as e:
-            st.warning(f"Could not generate quotation timeline: {e}")
+    if numeric_cols:
+        st.markdown("#### 💸 Summary Stats")
+        summary = sheet_df[numeric_cols].describe().transpose()[["mean", "sum"]]
+        summary.columns = ["Average", "Total (BHD)"]
+        st.dataframe(summary)
 
-# --- AI Assistant ---
-st.subheader("🤖 Ask Questions About Your Data")
-user_question = st.text_input("Ask a question about your operations data:")
+        for col in numeric_cols:
+            st.markdown(f"**{col} Distribution**")
+            fig, ax = plt.subplots()
+            sns.histplot(sheet_df[col].dropna(), kde=True, ax=ax)
+            ax.set_title(f"Distribution of {col}")
+            ax.set_xlabel(f"{col} (BHD)" if "amount" in col.lower() else col)
+            st.pyplot(fig)
+
+    if date_cols and numeric_cols:
+        date_col = date_cols[0]
+        st.markdown(f"#### ⏱️ Time Series - {numeric_cols[0]} over Time")
+        sheet_df[date_col] = pd.to_datetime(sheet_df[date_col], errors='coerce')
+        df_time = sheet_df[[date_col, numeric_cols[0]]].dropna()
+        df_time = df_time.groupby(df_time[date_col].dt.to_period("M")).sum().reset_index()
+        df_time[date_col.name] = df_time[date_col.name].astype(str)
+        st.line_chart(data=df_time.set_index(date_col.name))
+except Exception as e:
+    st.warning(f"Could not auto-generate visualizations: {e}")
+
+# --- AI Assistant per Sheet ---
+st.subheader("🤖 Ask a Question About This Sheet")
+user_question = st.text_input("Ask a question related to this sheet:")
 
 if user_question:
-    context_text = "\n\n".join([
-        f"Sheet: {sheet}\n" + data[sheet].head(5).to_string(index=False)
-        for sheet in data
-    ])
     try:
+        sample_data = sheet_df.head(10).to_string(index=False)
+        messages = [
+            {"role": "system", "content": "You are a business data analyst helping the user understand Excel sheets with financial and operational data. All currency is in Bahraini Dinar (BHD)."},
+            {"role": "user", "content": f"Here is the data from the '{selected_sheet}' sheet:\n\n{sample_data}\n\nNow answer this question:\n{user_question}"}
+        ]
         response = openai.chat.completions.create(
             model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant specialized in reading and summarizing business operations data from Excel sheets."},
-                {"role": "user", "content": f"Here is the data:\n{context_text}\n\nNow answer this question: {user_question}"},
-            ],
+            messages=messages,
             temperature=0.3
         )
         st.success(response.choices[0].message.content)
