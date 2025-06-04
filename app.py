@@ -56,7 +56,13 @@ if page == "Home Dashboard":
 
     total_quotations = sum(len(data[sheet]) for sheet in data if sheet.startswith("QT Register"))
     total_invoices = len(data.get("2025 INV", pd.DataFrame()))
-    total_pending = data.get("Payment Pending", pd.DataFrame())["Amount"].sum()
+    total_pending = 0
+    pay = data.get("Payment Pending", pd.DataFrame())
+    if not pay.empty:
+        pay.columns = pay.columns.str.strip()
+        if "Amount" in pay.columns:
+            total_pending = pay["Amount"].sum()
+
     total_subs = len(data.get("Subscriptions", pd.DataFrame()))
 
     col1, col2, col3, col4 = st.columns(4)
@@ -70,6 +76,10 @@ if page == "Home Dashboard":
     qt_monthly = all_qts.dropna(subset=["Date"]).groupby(all_qts["Date"].dt.to_period("M")).size().reset_index(name="Quotations")
     qt_monthly["Date"] = qt_monthly["Date"].astype(str)
     st.plotly_chart(px.bar(qt_monthly, x="Date", y="Quotations", title="Monthly Quotations"), use_container_width=True)
+
+    with st.expander("📋 Sheet Column Names (Debug Mode)"):
+        for sheet_name, df in data.items():
+            st.write(f"🗂️ {sheet_name}: {list(df.columns)}")
 
 elif page == "Quotations":
     st.title("📄 Quotation Register")
@@ -90,10 +100,14 @@ elif page == "Payments":
     st.title("💰 Payment Pending")
     pay = data.get("Payment Pending", pd.DataFrame())
     if not pay.empty:
+        pay.columns = pay.columns.str.strip()
         st.dataframe(pay, use_container_width=True)
-        client_summary = pay.groupby("Client")["Amount"].sum().reset_index()
-        fig = px.bar(client_summary, x="Client", y="Amount", title="Pending Amount by Client")
-        st.plotly_chart(fig, use_container_width=True)
+        if "Client" in pay.columns and "Amount" in pay.columns:
+            client_summary = pay.groupby("Client")["Amount"].sum().reset_index()
+            fig = px.bar(client_summary, x="Client", y="Amount", title="Pending Amount by Client")
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Columns 'Client' and/or 'Amount' not found in the 'Payment Pending' sheet.")
 
 elif page == "Subscriptions":
     st.title("📦 Active Subscriptions")
