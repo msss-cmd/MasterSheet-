@@ -10,11 +10,12 @@ st.set_page_config(layout="wide", page_title="SSS Master Sheet Dashboard")
 st.title("SSS Master Sheet Reporting & Dashboard")
 st.markdown("Upload your **single SSS Master Sheet Excel workbook** to get reports, visualizations, and a dashboard for its sheets.")
 
-# --- Helper Functions for Processing Each File Type (now by Sheet Name) ---
+# --- Helper Functions for Processing Each File Type (by Sheet Name) ---
 
 def process_qt_register_2025(df: pd.DataFrame):
     """
     Processes the 'QT Register 2025' data, performs analysis, and generates visualizations.
+    Includes advanced visualizations.
     """
     st.header("1. Quotation Register 2025 Analysis")
 
@@ -24,9 +25,9 @@ def process_qt_register_2025(df: pd.DataFrame):
     df.dropna(subset=['Date'], inplace=True)
 
     # Strip leading/trailing spaces from categorical columns
-    df['Company  Name'] = df['Company  Name'].astype(str).str.strip()
-    df['Product'] = df['Product'].astype(str).str.strip()
-    df['Sales Person'] = df['Sales Person'].astype(str).str.strip()
+    for col in ['Company  Name', 'Product', 'Sales Person']:
+        if col in df.columns:
+            df[col] = df[col].astype(str).str.strip()
 
     st.subheader("Raw Data Preview")
     st.dataframe(df.head())
@@ -54,10 +55,10 @@ def process_qt_register_2025(df: pd.DataFrame):
     st.write("#### Monthly Quotation Trends:")
     st.dataframe(monthly_quotations)
 
-    # Visualizations
-    st.subheader("Visualizations")
+    # --- Advanced Visualizations ---
+    st.subheader("Advanced Visualizations")
 
-    # Plot 1: Quotations by Sales Person
+    # Plot 1: Quotations by Sales Person (Basic)
     fig1, ax1 = plt.subplots(figsize=(10, 6))
     sns.barplot(x='Number of Quotations', y='Sales Person', data=quotations_by_sales_person, palette='viridis', ax=ax1)
     ax1.set_title('Number of Quotations by Sales Person (2025)')
@@ -65,7 +66,7 @@ def process_qt_register_2025(df: pd.DataFrame):
     ax1.set_ylabel('Sales Person')
     st.pyplot(fig1)
 
-    # Plot 2: Top Products by Quotations
+    # Plot 2: Top Products by Quotations (Basic)
     fig2, ax2 = plt.subplots(figsize=(12, 7))
     sns.barplot(x='Number of Quotations', y='Product', data=quotations_by_product.head(10), palette='magma', ax=ax2)
     ax2.set_title('Top 10 Products by Number of Quotations (2025)')
@@ -73,7 +74,7 @@ def process_qt_register_2025(df: pd.DataFrame):
     ax2.set_ylabel('Product')
     st.pyplot(fig2)
 
-    # Plot 3: Monthly Quotation Trends
+    # Plot 3: Monthly Quotation Trends (Basic)
     fig3, ax3 = plt.subplots(figsize=(10, 6))
     sns.lineplot(x='Month', y='Number of Quotations', data=monthly_quotations, marker='o', color='purple', ax=ax3)
     ax3.set_title('Monthly Quotation Trends (2025)')
@@ -82,9 +83,49 @@ def process_qt_register_2025(df: pd.DataFrame):
     plt.xticks(rotation=45, ha='right')
     st.pyplot(fig3)
 
+    # Advanced Visualization 1: Heatmap of Quotations by Product & Sales Person
+    if 'Sales Person' in df.columns and 'Product' in df.columns:
+        st.write("#### Heatmap: Quotations by Product and Sales Person")
+        # Create a pivot table to count quotations per Sales Person and Product
+        heatmap_data = df.groupby(['Sales Person', 'Product']).size().unstack(fill_value=0)
+        
+        if not heatmap_data.empty:
+            fig_heatmap, ax_heatmap = plt.subplots(figsize=(14, len(heatmap_data.index) * 0.7 + len(heatmap_data.columns) * 0.2)) # Dynamic sizing
+            sns.heatmap(heatmap_data, annot=True, fmt="d", cmap="YlGnBu", linewidths=.5, ax=ax_heatmap)
+            ax_heatmap.set_title('Number of Quotations per Product and Sales Person')
+            ax_heatmap.set_xlabel('Product')
+            ax_heatmap.set_ylabel('Sales Person')
+            plt.xticks(rotation=90)
+            plt.yticks(rotation=0)
+            plt.tight_layout() # Adjust layout to prevent labels overlapping
+            st.pyplot(fig_heatmap)
+        else:
+            st.info("No data available to generate Heatmap for Product and Sales Person.")
+
+
+    # Advanced Visualization 2: Cumulative Sum of Quotations Over Time
+    if 'Date' in df.columns:
+        st.write("#### Cumulative Sum of Quotations Over Time")
+        daily_quotations = df.groupby(df['Date'].dt.date).size().reset_index(name='Daily Quotations')
+        daily_quotations['Date'] = pd.to_datetime(daily_quotations['Date'])
+        daily_quotations = daily_quotations.sort_values('Date')
+        daily_quotations['Cumulative Quotations'] = daily_quotations['Daily Quotations'].cumsum()
+
+        if not daily_quotations.empty:
+            fig_cumulative, ax_cumulative = plt.subplots(figsize=(12, 6))
+            sns.lineplot(x='Date', y='Cumulative Quotations', data=daily_quotations, marker='o', color='green', ax=ax_cumulative)
+            ax_cumulative.set_title('Cumulative Number of Quotations (2025)')
+            ax_cumulative.set_xlabel('Date')
+            ax_cumulative.set_ylabel('Cumulative Quotations')
+            plt.xticks(rotation=45, ha='right')
+            st.pyplot(fig_cumulative)
+        else:
+            st.info("No date data available to generate Cumulative Sum of Quotations.")
+
+
 def process_2025_inv(df: pd.DataFrame):
     """
-    Processes the '2025 INV' data. (Placeholder for detailed analysis)
+    Processes the '2025 INV' data.
     """
     st.header("2. 2025 Invoices Analysis")
 
@@ -113,12 +154,11 @@ def process_2025_inv(df: pd.DataFrame):
 
 def process_meeting_agenda(df: pd.DataFrame):
     """
-    Processes the 'Meeting Agenda' data. (Placeholder for detailed analysis)
+    Processes the 'Meeting Agenda' data.
     """
     st.header("3. Meeting Agenda Analysis")
 
     # Basic Data Cleaning for Meeting Agenda
-    # Assuming 'Order Value Approx.' might be numeric, cleaning it
     df['Order Value Approx.'] = pd.to_numeric(
         df['Order Value Approx.'].astype(str).str.replace(',', ''), errors='coerce'
     )
@@ -152,7 +192,7 @@ def process_meeting_agenda(df: pd.DataFrame):
 
 def process_payment_pending(df: pd.DataFrame):
     """
-    Processes the 'Payment Pending' data. (Placeholder for detailed analysis)
+    Processes the 'Payment Pending' data.
     """
     st.header("4. Payment Pending Analysis")
 
@@ -202,10 +242,9 @@ def process_quotation_register_2023(df: pd.DataFrame):
 # --- Main Application Logic ---
 
 # Dictionary to map sheet names to their respective skiprows values
-# Based on the original CSV headers provided in the problem description
 sheet_skiprows_map = {
     "Payment Pending": 1,
-    "Quotation Register 2023": 879, # Assuming this is the exact sheet name in the .xlsx
+    "Quotation Register 2023": 879,
     "Meeting Agenda": 2,
     # For '2025 INV' and 'QT Register 2025', assuming header is at row 0 (default)
 }
@@ -213,12 +252,11 @@ sheet_skiprows_map = {
 uploaded_file = st.file_uploader(
     "Upload your SSS Master Sheet Excel workbook (.xlsx)",
     type=["xlsx"],
-    accept_multiple_files=False # Only one Excel file at a time
+    accept_multiple_files=False
 )
 
 if uploaded_file:
     try:
-        # Read all sheet names from the uploaded Excel file
         excel_file = pd.ExcelFile(uploaded_file)
         sheet_names = excel_file.sheet_names
 
@@ -235,10 +273,7 @@ if uploaded_file:
             for sheet_name in selected_sheets:
                 st.sidebar.write(f"Loading sheet: {sheet_name}")
 
-                # Determine skiprows for the current sheet
-                skip_rows = sheet_skiprows_map.get(sheet_name, 0) # Default to 0 if not in map
-
-                # Read the specific sheet
+                skip_rows = sheet_skiprows_map.get(sheet_name, 0)
                 df = pd.read_excel(uploaded_file, sheet_name=sheet_name, skiprows=skip_rows)
 
                 with st.expander(f"Analysis for Sheet: '{sheet_name}'"):
@@ -250,7 +285,7 @@ if uploaded_file:
                         process_meeting_agenda(df.copy())
                     elif "Payment Pending" in sheet_name:
                         process_payment_pending(df.copy())
-                    elif "Quotation Register 2023" in sheet_name: # Handle the 2023 quotation sheet
+                    elif "Quotation Register 2023" in sheet_name:
                         process_quotation_register_2023(df.copy())
                     else:
                         st.write(f"No specific processing logic defined for sheet: '{sheet_name}'. Displaying raw data.")
