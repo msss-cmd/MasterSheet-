@@ -357,7 +357,7 @@ def process_qt_register_2025(df: pd.DataFrame):
             st.markdown(f"""
             <div class="metric-card">
                 <p>Total Quotation Value</p>
-                <p class="metric-value">${total_value:,.0f}</p>
+                <p class="metric-value">BHD {total_value:,.0f}</p>
             </div>
             """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -584,7 +584,7 @@ def process_meeting_agenda(df: pd.DataFrame):
         st.markdown(f"""
         <div class="metric-card">
             <p>Total Approximate Order Value</p>
-            <p class="metric-value">${total_approx_order_value:,.0f}</p>
+            <p class="metric-value">BHD {total_approx_order_value:,.0f}</p>
         </div>
         """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -596,8 +596,7 @@ def process_meeting_agenda(df: pd.DataFrame):
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.subheader("Key Metrics & Reports (Example)")
-    st.write(f"Total Meeting Points: {total_meeting_points}")
-    st.write(f"Total Approximate Order Value: $ {total_approx_order_value:,.2f}")
+    st.write(f"Total Approximate Order Value: BHD {total_approx_order_value:,.2f}")
 
     st.markdown("""
     **Further analysis could include:**
@@ -648,7 +647,7 @@ def process_payment_pending(df: pd.DataFrame):
         st.markdown(f"""
         <div class="metric-card">
             <p>Total Pending Amount</p>
-            <p class="metric-value">${total_pending_amount:,.0f}</p>
+            <p class="metric-value">BHD {total_pending_amount:,.0f}</p>
         </div>
         """, unsafe_allow_html=True)
     with col2:
@@ -667,8 +666,7 @@ def process_payment_pending(df: pd.DataFrame):
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.subheader("Key Metrics & Reports (Example)")
-    st.write(f"Total Pending Amount: $ {total_pending_amount:,.2f}")
-    st.write("Number of Parties with Pending Payments:", num_parties_pending)
+    st.write(f"Total Pending Amount: BHD {total_pending_amount:,.2f}")
 
     st.markdown("""
     **Further analysis could include:**
@@ -688,7 +686,7 @@ def process_payment_pending(df: pd.DataFrame):
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.barplot(x='Amount', y='PARTY NAME', data=top_parties, palette='coolwarm', ax=ax)
         ax.set_title('Top 10 Parties by Pending Amount')
-        ax.set_xlabel('Amount Pending ($)')
+        ax.set_xlabel('Amount Pending (BHD)')
         ax.set_ylabel('Party Name')
         st.pyplot(fig)
 
