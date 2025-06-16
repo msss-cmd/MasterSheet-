@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import io
 
+# --- FIX: Move st.set_page_config to the very top ---
+st.set_page_config(layout="wide", page_title="Salahuddin Softech Solutions Dashboard")
+
 # --- Custom CSS for Streamlit App (from provided HTML/CSS concepts) ---
 st.markdown(
     """
@@ -306,9 +309,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-# Set page configuration
-st.set_page_config(layout="wide", page_title="Salahuddin Softech Solutions Dashboard")
 
 
 # --- Streamlit UI Components (rebuilt using design) ---
