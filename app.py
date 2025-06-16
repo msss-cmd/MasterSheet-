@@ -310,150 +310,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
-# --- Streamlit UI Components (rebuilt using design) ---
-
-st.markdown(
-    "<h2 class='st-emotion-cache-10grg6x e10grg6x4'>Salahuddin Softech Solutions Dashboard</h2>",
-    unsafe_allow_html=True
-)
-st.markdown(
-    "<p class='st-emotion-cache-10grg6x e10grg6x4' style='text-align: center; margin-bottom: 1.5rem;'>Upload your Excel workbook to unlock powerful data analysis and visualization.</p>",
-    unsafe_allow_html=True
-)
-
-# File Upload Section
-st.markdown(
-    """
-    <div class="flex flex-col p-4 main-content-section">
-      <div class="flex flex-col items-center gap-6 rounded-xl border-2 border-dashed border-[#3b5e5e] px-6 py-14">
-        <div class="flex max-w-[480px] flex-col items-center gap-2">
-          <p class="text-white text-lg font-bold leading-tight tracking-[-0.015em] max-w-[480px] text-center">Drag and drop your Excel file here</p>
-          <p class="text-white text-sm font-normal leading-normal max-w-[480px] text-center">Or click to browse your files</p>
-        </div>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-# Inject the Streamlit file uploader *after* the custom HTML for the dropzone
-uploaded_file = st.file_uploader(
-    "Upload your SSS Master Sheet Excel workbook (.xlsx)",
-    type=["xlsx"],
-    accept_multiple_files=False,
-    key="excel_uploader",
-    label_visibility="collapsed" # Hide default label, as we have custom text
-)
-
-# Dictionary to map sheet names to their respective skiprows values
-sheet_skiprows_map = {
-    "Payment Pending": 1,
-    "Quotation Register 2023": 879,
-    "Meeting Agenda": 2,
-    # For '2025 INV' and 'QT Register 2025', assuming header is at row 0 (default)
-}
-
-# Initialize session state for processed dataframes
-if 'processed_dataframes' not in st.session_state:
-    st.session_state['processed_dataframes'] = {}
-
-if uploaded_file:
-    # Check if a new file is uploaded or if the file has changed
-    if st.session_state.get('last_uploaded_file_id') != uploaded_file.file_id:
-        st.session_state['processed_dataframes'] = {} # Clear dataframes if new file
-        st.session_state['last_uploaded_file_id'] = uploaded_file.file_id # Store current file ID
-
-        try:
-            excel_file = pd.ExcelFile(uploaded_file)
-            sheet_names = excel_file.sheet_names
-
-            # Process all sheets and store them in session state for later use
-            for sheet_name in sheet_names:
-                skip_rows = sheet_skiprows_map.get(sheet_name, 0)
-                df = pd.read_excel(uploaded_file, sheet_name=sheet_name, skiprows=skip_rows)
-                st.session_state['processed_dataframes'][sheet_name] = df
-
-            st.success("Excel file loaded and sheets processed!")
-
-        except Exception as e:
-            st.error(f"Error processing the Excel file: {e}")
-            st.write("Please ensure the uploaded file is a valid .xlsx workbook and that the sheet names and data formats are consistent.")
-            st.session_state['processed_dataframes'] = {} # Clear on error
-
-    # --- Data Analysis & Reports Section ---
-    if st.session_state['processed_dataframes']:
-        st.markdown(
-            "<div class='main-content-section flex h-full min-h-[700px] flex-col justify-between bg-[--primary-bg] p-4'>",
-            unsafe_allow_html=True
-        )
-        st.markdown("<h1 class='st-emotion-cache-10grg6x e10grg6x4'>Data Sheets</h1>", unsafe_allow_html=True)
-
-        # Sheet Selection
-        available_sheets = list(st.session_state['processed_dataframes'].keys())
-        # Provide a default selection for common sheets if they exist
-        default_selection = [s for s in available_sheets if any(keyword in s for keyword in ["QT Register 2025", "2025 INV", "Meeting Agenda", "Payment Pending", "Quotation Register 2023"])]
-        if not default_selection and available_sheets: # If no common sheets, select the first one
-            default_selection = [available_sheets[0]]
-
-        selected_sheets_for_analysis = st.multiselect(
-            "Sheet Selection", # Label for the multiselect
-            options=available_sheets,
-            default=default_selection,
-            label_visibility="collapsed" # Hide default label to use custom one
-        )
-        st.markdown(
-            """
-            <div class="flex items-center gap-3 px-3 py-2 rounded-full bg-[--secondary-bg]" style="margin-top: -30px; margin-bottom: 1rem;">
-                <div class="text-white" data-icon="File" data-size="24px" data-weight="fill">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
-                        <path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM152,88V44l44,44Z"></path>
-                    </svg>
-                </div>
-                <p class="text-white text-sm font-medium leading-normal">Sheet Selection</p>
-            </div>
-            """, unsafe_allow_html=True
-        )
-
-
-        # Apply button (just for visual representation, Streamlit multiselect updates instantly)
-        st.button(
-            "Apply",
-            key="apply_sheets",
-            help="Click to apply selected sheets for analysis (selection applies automatically).",
-            use_container_width=True # Make button full width as per design
-        )
-
-        if not selected_sheets_for_analysis:
-            st.info("Please select at least one sheet for analysis from the multi-select above.")
-        else:
-            for sheet_name in selected_sheets_for_analysis:
-                df = st.session_state['processed_dataframes'][sheet_name].copy() # Use a copy for display/analysis
-                with st.expander(f"Analysis for Sheet: '{sheet_name}'", expanded=True):
-                    if "QT Register 2025" in sheet_name:
-                        # Reusing internal functions with new styling
-                        process_qt_register_2025(df)
-                    elif "2025 INV" in sheet_name:
-                        process_2025_inv(df)
-                    elif "Meeting Agenda" in sheet_name:
-                        process_meeting_agenda(df)
-                    elif "Payment Pending" in sheet_name:
-                        process_payment_pending(df)
-                    elif "Quotation Register 2023" in sheet_name:
-                        process_quotation_register_2023(df)
-                    else:
-                        st.write(f"No specific processing logic defined for sheet: '{sheet_name}'. Displaying raw data.")
-                        st.dataframe(df.head())
-        st.markdown("</div>", unsafe_allow_html=True) # Close the main-content-container
-
-
-    else:
-        st.info("Please upload an Excel workbook from the file uploader above to view Data Analysis & Reports.")
-
-else:
-    st.info("Please upload your Excel workbook (.xlsx) from the file uploader above to get started.")
-
-
-# --- Helper Functions for Processing Each File Type (by Sheet Name) ---
+# --- Helper Functions for Processing Each File Type (moved to top) ---
 
 def process_qt_register_2025(df: pd.DataFrame):
     """
@@ -851,3 +708,145 @@ def process_quotation_register_2023(df: pd.DataFrame):
     st.markdown("""
     To perform meaningful analysis on this sheet, please provide more information about what each column represents.
     """)
+
+
+# --- Streamlit UI Components (rebuilt using design) ---
+
+st.markdown(
+    "<h2 class='st-emotion-cache-10grg6x e10grg6x4'>Salahuddin Softech Solutions Dashboard</h2>",
+    unsafe_allow_html=True
+)
+st.markdown(
+    "<p class='st-emotion-cache-10grg6x e10grg6x4' style='text-align: center; margin-bottom: 1.5rem;'>Upload your Excel workbook to unlock powerful data analysis and visualization.</p>",
+    unsafe_allow_html=True
+)
+
+# File Upload Section
+st.markdown(
+    """
+    <div class="flex flex-col p-4 main-content-section">
+      <div class="flex flex-col items-center gap-6 rounded-xl border-2 border-dashed border-[#3b5e5e] px-6 py-14">
+        <div class="flex max-w-[480px] flex-col items-center gap-2">
+          <p class="text-white text-lg font-bold leading-tight tracking-[-0.015em] max-w-[480px] text-center">Drag and drop your Excel file here</p>
+          <p class="text-white text-sm font-normal leading-normal max-w-[480px] text-center">Or click to browse your files</p>
+        </div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+# Inject the Streamlit file uploader *after* the custom HTML for the dropzone
+uploaded_file = st.file_uploader(
+    "Upload your SSS Master Sheet Excel workbook (.xlsx)",
+    type=["xlsx"],
+    accept_multiple_files=False,
+    key="excel_uploader",
+    label_visibility="collapsed" # Hide default label, as we have custom text
+)
+
+# Dictionary to map sheet names to their respective skiprows values
+sheet_skiprows_map = {
+    "Payment Pending": 1,
+    "Quotation Register 2023": 879,
+    "Meeting Agenda": 2,
+    # For '2025 INV' and 'QT Register 2025', assuming header is at row 0 (default)
+}
+
+# Initialize session state for processed dataframes
+if 'processed_dataframes' not in st.session_state:
+    st.session_state['processed_dataframes'] = {}
+
+if uploaded_file:
+    # Check if a new file is uploaded or if the file has changed
+    if st.session_state.get('last_uploaded_file_id') != uploaded_file.file_id:
+        st.session_state['processed_dataframes'] = {} # Clear dataframes if new file
+        st.session_state['last_uploaded_file_id'] = uploaded_file.file_id # Store current file ID
+
+        try:
+            excel_file = pd.ExcelFile(uploaded_file)
+            sheet_names = excel_file.sheet_names
+
+            # Process all sheets and store them in session state for later use
+            for sheet_name in sheet_names:
+                skip_rows = sheet_skiprows_map.get(sheet_name, 0)
+                df = pd.read_excel(uploaded_file, sheet_name=sheet_name, skiprows=skip_rows)
+                st.session_state['processed_dataframes'][sheet_name] = df
+
+            st.success("Excel file loaded and sheets processed!")
+
+        except Exception as e:
+            st.error(f"Error processing the Excel file: {e}")
+            st.write("Please ensure the uploaded file is a valid .xlsx workbook and that the sheet names and data formats are consistent.")
+            st.session_state['processed_dataframes'] = {} # Clear on error
+
+    # --- Data Analysis & Reports Section ---
+    if st.session_state['processed_dataframes']:
+        st.markdown(
+            "<div class='main-content-section flex h-full min-h-[700px] flex-col justify-between bg-[--primary-bg] p-4'>",
+            unsafe_allow_html=True
+        )
+        st.markdown("<h1 class='st-emotion-cache-10grg6x e10grg6x4'>Data Sheets</h1>", unsafe_allow_html=True)
+
+        # Sheet Selection
+        available_sheets = list(st.session_state['processed_dataframes'].keys())
+        # Provide a default selection for common sheets if they exist
+        default_selection = [s for s in available_sheets if any(keyword in s for keyword in ["QT Register 2025", "2025 INV", "Meeting Agenda", "Payment Pending", "Quotation Register 2023"])]
+        if not default_selection and available_sheets: # If no common sheets, select the first one
+            default_selection = [available_sheets[0]]
+
+        selected_sheets_for_analysis = st.multiselect(
+            "Sheet Selection", # Label for the multiselect
+            options=available_sheets,
+            default=default_selection,
+            label_visibility="collapsed" # Hide default label to use custom one
+        )
+        st.markdown(
+            """
+            <div class="flex items-center gap-3 px-3 py-2 rounded-full bg-[--secondary-bg]" style="margin-top: -30px; margin-bottom: 1rem;">
+                <div class="text-white" data-icon="File" data-size="24px" data-weight="fill">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                        <path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM152,88V44l44,44Z"></path>
+                    </svg>
+                </div>
+                <p class="text-white text-sm font-medium leading-normal">Sheet Selection</p>
+            </div>
+            """, unsafe_allow_html=True
+        )
+
+
+        # Apply button (just for visual representation, Streamlit multiselect updates instantly)
+        st.button(
+            "Apply",
+            key="apply_sheets",
+            help="Click to apply selected sheets for analysis (selection applies automatically).",
+            use_container_width=True # Make button full width as per design
+        )
+
+        if not selected_sheets_for_analysis:
+            st.info("Please select at least one sheet for analysis from the multi-select above.")
+        else:
+            for sheet_name in selected_sheets_for_analysis:
+                df = st.session_state['processed_dataframes'][sheet_name].copy() # Use a copy for display/analysis
+                with st.expander(f"Analysis for Sheet: '{sheet_name}'", expanded=True):
+                    if "QT Register 2025" in sheet_name:
+                        # Reusing internal functions with new styling
+                        process_qt_register_2025(df)
+                    elif "2025 INV" in sheet_name:
+                        process_2025_inv(df)
+                    elif "Meeting Agenda" in sheet_name:
+                        process_meeting_agenda(df)
+                    elif "Payment Pending" in sheet_name:
+                        process_payment_pending(df)
+                    elif "Quotation Register 2023" in sheet_name:
+                        process_quotation_register_2023(df)
+                    else:
+                        st.write(f"No specific processing logic defined for sheet: '{sheet_name}'. Displaying raw data.")
+                        st.dataframe(df.head())
+        st.markdown("</div>", unsafe_allow_html=True) # Close the main-content-container
+
+
+    else:
+        st.info("Please upload an Excel workbook from the file uploader above to view Data Analysis & Reports.")
+
+else:
+    st.info("Please upload your Excel workbook (.xlsx) from the file uploader above to get started.")
